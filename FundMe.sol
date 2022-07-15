@@ -6,21 +6,23 @@ pragma solidity ^0.8.0;
 
 import "./CalculatePrice.sol";
 
+error NotOwner();
+
 contract FundMe{
     using CalculatePrice for uint256;
-    uint public leastAmount = 50 * 1e18;
+    uint public constant LEASTAMOUNT = 50 * 1e18;
     address[] public funders;
-    address public owner;
+    address public immutable i_owner;
     mapping (address => uint256) public addressToFundedAmount;
     
     constructor() {
-        owner = msg.sender;
+        i_owner = msg.sender;
     }
 
     function fund() public payable {
         //without library
-        //require(getConversionRate(msg.value) >= leastAmount, "Didn't pay enough"); //Require Function: If condition didn't met, it reverts means stop further execution of code in the called function and thus save further spent of gas fee. It also undone all the done work in a function.
-        require(msg.value.getConversionRate() >= leastAmount, "Didn't pay enough");
+        //require(getConversionRate(msg.value) >= LEASTAMOUNT, "Didn't pay enough"); //Require Function: If condition didn't met, it reverts means stop further execution of code in the called function and thus save further spent of gas fee. It also undone all the done work in a function.
+        require(msg.value.getConversionRate() >= LEASTAMOUNT, "Didn't pay enough");
         funders.push(msg.sender);
         addressToFundedAmount[msg.sender] += msg.value;
     }
@@ -46,7 +48,16 @@ contract FundMe{
         require(callSucceed, "Call failed!");
     }
     modifier onlyOwner{
-        require(msg.sender == owner, "Only owner can call this");
+        //require(msg.sender == i_owner, "Only owner can call this");
+        // In require function, string: "Only owner can call this" is taking more gas so
+        if (msg.sender != i_owner) { revert NotOwner();}
+        
         _;
+    }
+    receive() external payable {
+        fund();
+    }
+    fallback() external payable {
+        fund();
     }
 }
